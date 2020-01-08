@@ -9,12 +9,27 @@ import { enableProdMode } from '@angular/core';
 import { renderModuleFactory } from '@angular/platform-server';
 import { ngExpressEngine } from '@nguniversal/express-engine';
 import { provideModuleMap } from '@nguniversal/module-map-ngfactory-loader';
+import { createWindow } from 'domino';
 import * as express from 'express';
 import { mkdirSync } from 'mkdir-recursive';
+
+const DIST_FOLDER = join(process.cwd(), 'dist');
+const APP_NAME = 'angularfire-prerender-analytics';
+
+// index.html template
+const template = readFileSync(
+  join(DIST_FOLDER, APP_NAME, 'index.html')
+).toString();
 
 // Polyfills required for Firebase
 (global as any).WebSocket = require('ws');
 (global as any).XMLHttpRequest = require('xhr2');
+const win = createWindow(template);
+(global as any)['window'] = win;
+(global as any)['document'] = win.document;
+(global as any)['firebase'] = {
+  analytics: function() {}
+};
 
 // Faster renders in prod mode
 enableProdMode();
@@ -22,18 +37,10 @@ enableProdMode();
 // Export our express server
 export const app = express();
 
-const DIST_FOLDER = join(process.cwd(), 'dist');
-const APP_NAME = 'angularfire-prerender-analytics';
-
 const {
   AppServerModuleNgFactory,
   LAZY_MODULE_MAP
 } = require(`./dist/${APP_NAME}-server/main`);
-
-// index.html template
-const template = readFileSync(
-  join(DIST_FOLDER, APP_NAME, 'index.html')
-).toString();
 
 app.engine(
   'html',
